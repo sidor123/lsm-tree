@@ -1,14 +1,20 @@
 import unittest
 import shutil
 import os
-from main import LSMTree, Layer, BloomFilter, DiskLayer
+import logging
+from lsm_tree import LSMTree, Layer, BloomFilter, DiskLayer
 
-TEST_STORAGE_BASE = "lsm_storage_test"
+TEST_STORAGE_BASE = "tests/lsm_storage_test"
+
+logger = logging.getLogger(__name__)
 
 
 class TestLSMTree(unittest.TestCase):
     
     def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
         self.test_dir = os.path.join(TEST_STORAGE_BASE, self._testMethodName)
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
@@ -16,9 +22,12 @@ class TestLSMTree(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
     
     def test_simple(self):
-        """Test simple add and get operations."""
         lsm = LSMTree(self.test_dir)
         
         lsm.add("key1", "value1")
@@ -29,7 +38,6 @@ class TestLSMTree(unittest.TestCase):
         self.assertIsNone(lsm.get("nonexistent"))
     
     def test_merge_full_layer(self):
-        """Test that merge happens when layer is full."""
         lsm = LSMTree(self.test_dir)
         
         lsm.add("a", "1")
@@ -42,7 +50,6 @@ class TestLSMTree(unittest.TestCase):
         self.assertEqual(lsm.get("b"), "2")
 
     def test_simple_removal(self):
-        """Test that remove command works correctly."""
         lsm = LSMTree(self.test_dir)
 
         for i in range(3):
@@ -56,7 +63,6 @@ class TestLSMTree(unittest.TestCase):
         self.assertEqual(lsm.get("key2"), "value2")
     
     def test_overwrite(self):
-        """Test that newer values override older ones."""
         lsm = LSMTree(self.test_dir)
         
         lsm.add("key", "old_value")
@@ -65,7 +71,6 @@ class TestLSMTree(unittest.TestCase):
         self.assertEqual(lsm.get("key"), "new_value")
     
     def test_layers(self):
-        """Test operations across multiple layers."""
         lsm = LSMTree(self.test_dir)
         
         keys = [f"key{i}" for i in range(10)]
@@ -78,7 +83,6 @@ class TestLSMTree(unittest.TestCase):
             self.assertEqual(lsm.get(key), value)
     
     def test_simple_search(self):
-        """Test that binary search works correctly in layers."""
         layer = Layer(max_size=10)
         
         for i in range(5):
@@ -90,7 +94,6 @@ class TestLSMTree(unittest.TestCase):
         self.assertIsNone(layer.search("nonexistent"))
 
     def test_multilayer_search(self):
-        """Test that search works across multiple layers."""
         lsm = LSMTree(self.test_dir)
         
         keys = [f"key{i}" for i in range(4)]
@@ -113,6 +116,9 @@ class TestLSMTree(unittest.TestCase):
 class TestBloomFilter(unittest.TestCase):
     
     def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
         self.test_dir = os.path.join(TEST_STORAGE_BASE, self._testMethodName)
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
@@ -120,9 +126,12 @@ class TestBloomFilter(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
     
     def test_simple(self):
-        """Test basic Bloom filter operations."""
         bf = BloomFilter(size=100, num_hashes=3)
         
         bf.add("key1")
@@ -134,7 +143,6 @@ class TestBloomFilter(unittest.TestCase):
         self.assertTrue(bf.might_contain("key3"))
     
     def test_fp_rate(self):
-        """Test Bloom filter returns False for keys not added."""
         bf = BloomFilter(size=1000, num_hashes=3)
         
         bf.add("existing_key")
@@ -150,7 +158,6 @@ class TestBloomFilter(unittest.TestCase):
         self.assertLess(false_positives, 20)
     
     def test_layer(self):
-        """Test Bloom filter integration in Layer."""
         layer = Layer(max_size=10)
         
         layer.add("key1", "value1")
@@ -161,7 +168,6 @@ class TestBloomFilter(unittest.TestCase):
         self.assertFalse(layer.bloom_filter.might_contain("nonexistent"))
     
     def test_after_merge(self):
-        """Test Bloom filter is correctly rebuilt after merge."""
         lsm = LSMTree(self.test_dir)
         
         lsm.add("a", "1")
@@ -172,7 +178,6 @@ class TestBloomFilter(unittest.TestCase):
         self.assertFalse(lsm.layers[1].bloom_filter.might_contain("nonexistent"))
     
     def test_fp_rate_layers(self):
-        """Test Bloom filter false positive rate is reasonable."""
         bf = BloomFilter(size=1000, num_hashes=3)
         
         added_keys = [f"added_{i}" for i in range(50)]
@@ -189,6 +194,9 @@ class TestBloomFilter(unittest.TestCase):
 class TestRangeSearch(unittest.TestCase):
     
     def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
         self.test_dir = os.path.join(TEST_STORAGE_BASE, self._testMethodName)
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
@@ -196,9 +204,12 @@ class TestRangeSearch(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
     
     def test_simple(self):
-        """Test range search within a single layer."""
         layer = Layer(max_size=20)
         
         for i in range(10):
@@ -213,7 +224,6 @@ class TestRangeSearch(unittest.TestCase):
         self.assertIn("key05", result)
     
     def test_empty(self):
-        """Test range search with no matching keys."""
         layer = Layer(max_size=20)
         
         layer.add("key10", "value10")
@@ -224,7 +234,6 @@ class TestRangeSearch(unittest.TestCase):
         self.assertEqual(len(result), 0)
     
     def test_layers(self):
-        """Test range search across multiple layers."""
         lsm = LSMTree(self.test_dir)
         
         for i in range(10):
@@ -239,7 +248,6 @@ class TestRangeSearch(unittest.TestCase):
             self.assertEqual(result[key], f"value{i}")
     
     def test_overwrites(self):
-        """Test range search returns newest values when keys are overwritten."""
         lsm = LSMTree(self.test_dir)
         
         lsm.add("key1", "old1")
@@ -258,7 +266,6 @@ class TestRangeSearch(unittest.TestCase):
         self.assertEqual(result["key4"], "old4")
     
     def test_full_range(self):
-        """Test range search that covers all keys."""
         lsm = LSMTree(self.test_dir)
         
         keys = ["apple", "banana", "cherry", "date", "elderberry"]
@@ -275,6 +282,9 @@ class TestRangeSearch(unittest.TestCase):
 class TestDiskPersistence(unittest.TestCase):
     
     def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
         self.test_dir = os.path.join(TEST_STORAGE_BASE, self._testMethodName)
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
@@ -282,9 +292,12 @@ class TestDiskPersistence(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
     
     def test_disk_layer_save_and_load(self):
-        """Test that DiskLayer can save and load from disk."""
         layer = DiskLayer(max_size=10, layer_id=1, storage_dir=self.test_dir)
         
         layer.add("key1", "value1")
@@ -301,7 +314,6 @@ class TestDiskPersistence(unittest.TestCase):
             self.assertEqual(loaded_layer.objects["key3"], "value3")
     
     def test_lsm_tree_persistence(self):
-        """Test that LSM tree persists disk layers across restarts."""
         lsm1 = LSMTree(self.test_dir)
         
         for i in range(6):
@@ -317,7 +329,6 @@ class TestDiskPersistence(unittest.TestCase):
             self.assertEqual(lsm2.get(f"key{i}"), f"value{i}")
     
     def test_merge_creates_disk_layers(self):
-        """Test that merge operation creates disk layers."""
         lsm = LSMTree(self.test_dir)
         
         lsm.add("a", "1")
@@ -330,7 +341,6 @@ class TestDiskPersistence(unittest.TestCase):
         self.assertGreater(len(disk_files), 0)
     
     def test_disk_layer_bloom_filter_persistence(self):
-        """Test that Bloom filter is correctly saved and loaded."""
         layer = DiskLayer(max_size=10, layer_id=1, storage_dir=self.test_dir)
         
         layer.add("key1", "value1")
@@ -345,7 +355,6 @@ class TestDiskPersistence(unittest.TestCase):
             self.assertFalse(loaded_layer.bloom_filter.might_contain("nonexistent"))
     
     def test_memory_buffer_not_persisted(self):
-        """Test that MemoryBuffer (layer 0) is not persisted to disk."""
         lsm = LSMTree(self.test_dir)
         
         lsm.add("key1", "value1")
@@ -357,4 +366,18 @@ class TestDiskPersistence(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    log_dir = 'tests/logs'
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, 'lsm_tree_test.log')
+    if os.path.exists(log_file):
+        os.remove(log_file)
+    
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file)
+        ]
+    )
+    
     unittest.main()
