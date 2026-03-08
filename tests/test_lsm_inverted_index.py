@@ -181,6 +181,168 @@ class TestLSMInvertedIndex(unittest.TestCase):
         self.assertGreater(len(quick_results.to_list()), 0)
 
 
+class TestLSMPrefixSearch(unittest.TestCase):
+    def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
+        self.test_dir = "lsm_prefix_test"
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        
+        self.index = LSMInvertedIndex(
+            storage_dir=self.test_dir,
+            use_stemming=True,
+            remove_stopwords=True,
+            enable_kgram=True
+        )
+    
+    def tearDown(self):
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
+    
+    def test_prefix_search_basic(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java programming language")
+        
+        results = self.index.search_prefix("prog")
+        
+        self.assertEqual(len(results), 3)
+    
+    def test_prefix_search_no_matches(self):
+        self.index.add_document("Python is great")
+        self.index.add_document("Java is good")
+        
+        results = self.index.search_prefix("xyz")
+        
+        self.assertEqual(len(results), 0)
+    
+    def test_prefix_search_lsm_range(self):
+        for i in range(10):
+            self.index.add_document(f"Python programming document {i}")
+        
+        results = self.index.search_prefix("prog")
+        
+        self.assertEqual(len(results), 10)
+    
+    def test_prefix_search_persistence(self):
+        self.index.add_document("Python programming")
+        self.index.add_document("Java development")
+        
+        new_index = LSMInvertedIndex(storage_dir=self.test_dir, enable_kgram=True)
+        
+        results = new_index.search_prefix("prog")
+        
+        self.assertGreater(len(results), 0)
+
+
+class TestLSMWildcardSearch(unittest.TestCase):
+    def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
+        self.test_dir = "lsm_wildcard_test"
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        
+        self.index = LSMInvertedIndex(
+            storage_dir=self.test_dir,
+            use_stemming=True,
+            remove_stopwords=True,
+            enable_kgram=True
+        )
+    
+    def tearDown(self):
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
+    
+    def test_wildcard_search_prefix(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java programming language")
+        
+        results = self.index.search_wildcard("prog*")
+        
+        self.assertEqual(len(results), 3)
+    
+    def test_wildcard_search_suffix(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java development")
+        
+        results = self.index.search_wildcard("*thon")
+        
+        self.assertEqual(len(results), 2)
+    
+    def test_wildcard_search_middle(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java development")
+        
+        results = self.index.search_wildcard("pro*am")
+        
+        self.assertEqual(len(results), 2)
+    
+    def test_wildcard_search_no_matches(self):
+        self.index.add_document("Python is great")
+        self.index.add_document("Java is good")
+        
+        results = self.index.search_wildcard("xyz*abc")
+        
+        self.assertEqual(len(results), 0)
+    
+    def test_wildcard_search_disabled_kgram(self):
+        index_no_kgram = LSMInvertedIndex(
+            storage_dir=self.test_dir + "_no_kgram",
+            enable_kgram=False
+        )
+        index_no_kgram.add_document("Python programming")
+        
+        with self.assertRaises(RuntimeError):
+            index_no_kgram.search_wildcard("prog*")
+        
+        if os.path.exists(self.test_dir + "_no_kgram"):
+            shutil.rmtree(self.test_dir + "_no_kgram")
+    
+    def test_wildcard_search_persistence(self):
+        self.index.add_document("Python programming")
+        self.index.add_document("Java development")
+        
+        new_index = LSMInvertedIndex(storage_dir=self.test_dir, enable_kgram=True)
+        
+        results = new_index.search_wildcard("prog*")
+        
+        self.assertGreater(len(results), 0)
+    
+    def test_wildcard_search_many_documents(self):
+        for i in range(20):
+            self.index.add_document(f"Python programming document {i}")
+        
+        results = self.index.search_wildcard("prog*")
+        
+        self.assertEqual(len(results), 20)
+    
+    def test_kgram_index_stats(self):
+        self.index.add_document("Python programming")
+        self.index.add_document("Java development")
+        
+        stats = self.index.get_stats()
+        
+        self.assertIn('kgram_lsm_layers', stats)
+        self.assertIn('term_mapping_layers', stats)
+        self.assertGreaterEqual(stats['kgram_lsm_layers'], 1)
+        self.assertGreaterEqual(stats['term_mapping_layers'], 1)
+
+
 if __name__ == '__main__':
     log_dir = 'tests/logs'
     os.makedirs(log_dir, exist_ok=True)

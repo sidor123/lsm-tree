@@ -221,6 +221,172 @@ class TestInvertedIndex(unittest.TestCase):
         self.assertGreater(stats['total_postings'], 0)
 
 
+class TestPrefixSearch(unittest.TestCase):
+    def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
+        self.index = InvertedIndex(use_stemming=True, remove_stopwords=True, enable_kgram=True)
+    
+    def tearDown(self):
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
+    
+    def test_prefix_search_basic(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java programming language")
+        
+        results = self.index.search_prefix("prog")
+        
+        self.assertEqual(len(results), 3)
+        self.assertIn(0, results)
+        self.assertIn(1, results)
+        self.assertIn(2, results)
+    
+    def test_prefix_search_no_matches(self):
+        self.index.add_document("Python is great")
+        self.index.add_document("Java is good")
+        
+        results = self.index.search_prefix("xyz")
+        
+        self.assertEqual(len(results), 0)
+    
+    def test_prefix_search_single_char(self):
+        self.index.add_document("Python programming")
+        self.index.add_document("Java development")
+        
+        results = self.index.search_prefix("p")
+        
+        self.assertGreater(len(results), 0)
+        self.assertIn(0, results)
+    
+    def test_prefix_search_full_term(self):
+        self.index.add_document("Python programming")
+        self.index.add_document("Java programming")
+        
+        results = self.index.search_prefix("python")
+        
+        self.assertEqual(len(results), 1)
+        self.assertIn(0, results)
+    
+    def test_prefix_search_empty(self):
+        self.index.add_document("Python programming")
+        
+        results = self.index.search_prefix("")
+        
+        self.assertEqual(len(results), 0)
+    
+    def test_prefix_search_with_stemming(self):
+        self.index.add_document("running runner runs")
+        
+        results = self.index.search_prefix("run")
+        
+        self.assertEqual(len(results), 1)
+        self.assertIn(0, results)
+
+
+class TestWildcardSearch(unittest.TestCase):
+    def setUp(self):
+        logger.info("=" * 80)
+        logger.info(f"    Starting test: {self._testMethodName}")
+        logger.info("=" * 80)
+        self.index = InvertedIndex(use_stemming=True, remove_stopwords=True, enable_kgram=True)
+    
+    def tearDown(self):
+        logger.info("=" * 80)
+        logger.info(f"    Completed test: {self._testMethodName}")
+        logger.info("=" * 80)
+        logger.info("")
+    
+    def test_wildcard_search_prefix(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java programming language")
+        
+        results = self.index.search_wildcard("prog*")
+        
+        self.assertEqual(len(results), 3)
+    
+    def test_wildcard_search_suffix(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java development")
+        
+        results = self.index.search_wildcard("*thon")
+        
+        self.assertEqual(len(results), 2)
+        self.assertIn(0, results)
+        self.assertIn(1, results)
+    
+    def test_wildcard_search_middle(self):
+        self.index.add_document("Python programming is great")
+        self.index.add_document("I love programming in Python")
+        self.index.add_document("Java development")
+        
+        results = self.index.search_wildcard("pro*am")
+        
+        self.assertEqual(len(results), 2)
+        self.assertIn(0, results)
+        self.assertIn(1, results)
+    
+    def test_wildcard_search_no_matches(self):
+        self.index.add_document("Python is great")
+        self.index.add_document("Java is good")
+        
+        results = self.index.search_wildcard("xyz*abc")
+        
+        self.assertEqual(len(results), 0)
+    
+    def test_wildcard_search_no_wildcard(self):
+        self.index.add_document("Python programming")
+        
+        with self.assertRaises(ValueError):
+            self.index.search_wildcard("python")
+    
+    def test_wildcard_search_multiple_wildcards(self):
+        self.index.add_document("Python programming")
+        
+        with self.assertRaises(ValueError):
+            self.index.search_wildcard("p*o*g")
+    
+    def test_wildcard_search_short_pattern(self):
+        self.index.add_document("Python programming")
+        self.index.add_document("Java development")
+        
+        results = self.index.search_wildcard("p*")
+        
+        self.assertGreater(len(results), 0)
+    
+    def test_wildcard_search_disabled_kgram(self):
+        index_no_kgram = InvertedIndex(enable_kgram=False)
+        index_no_kgram.add_document("Python programming")
+        
+        with self.assertRaises(RuntimeError):
+            index_no_kgram.search_wildcard("prog*")
+    
+    def test_wildcard_search_with_stemming(self):
+        self.index.add_document("running runner runs")
+        
+        results = self.index.search_wildcard("run*")
+        
+        self.assertEqual(len(results), 1)
+        self.assertIn(0, results)
+    
+    def test_kgram_index_stats(self):
+        self.index.add_document("Python programming")
+        self.index.add_document("Java development")
+        
+        stats = self.index.get_stats()
+        
+        self.assertIn('num_kgrams', stats)
+        self.assertIn('kgram_postings', stats)
+        self.assertGreater(stats['num_kgrams'], 0)
+        self.assertGreater(stats['kgram_postings'], 0)
+
+
 if __name__ == '__main__':
     log_dir = 'tests/logs'
     os.makedirs(log_dir, exist_ok=True)
