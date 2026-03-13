@@ -1,14 +1,12 @@
 from .core import (
-    InvertedIndex,
     RoaringBitmapWrapper,
     TextPreprocessor
 )
 
-from .lsm_based import LSMInvertedIndex
+from .lsm_based import InvertedIndex
 
 __all__ = [
     'InvertedIndex',
-    'LSMInvertedIndex',
     'RoaringBitmapWrapper',
     'TextPreprocessor'
 ]

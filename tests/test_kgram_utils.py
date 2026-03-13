@@ -100,7 +100,9 @@ class TestKGramGenerator(unittest.TestCase):
     
     def test_pattern_to_regex_special_chars(self):
         regex = self.generator.pattern_to_regex("test.*")
-        self.assertIn(r'\.\*', regex)
+        self.assertIn(r'\.', regex)
+        self.assertNotIn(r'\*', regex)  # * should be converted to .*
+        self.assertIn('.*', regex)
     
     def test_kgram_generation_with_k3(self):
         gen = KGramGenerator(k=3)

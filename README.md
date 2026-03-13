@@ -165,6 +165,11 @@ python3 demo_prefix_wildcard.py
 - **Wildcard поиск с k-gram индексом**: поддержка паттернов с одним символом `*`
   - Примеры: `"prog*"`, `"*thon"`, `"pro*am"`
   - Использует биграммы (k=2) для эффективного поиска
+- **Поиск по датам**:
+  - **Часть A**: Одиночный атрибут даты с поиском по диапазону
+  - **Часть B**: Жизненный цикл документа (даты начала и окончания)
+  - Булевы запросы с условиями на даты: `DATE[start:end]`, `VALID[start:end]`, `CREATED[start:end]`
+  - Поддержка открытых диапазонов: `DATE[2024-01-01:]` или `DATE[:2024-12-31]`
 - **Препроцессинг текста**:
   - Stemming (Porter Stemmer)
   - Stop-words removal
@@ -245,6 +250,52 @@ wildcard_results = index.search_wildcard("*thon")
 print(f"Wildcard: {wildcard_results}")  # [0, 1] - находит "python"
 ```
 
+### Поиск по датам
+
+```python
+from datetime import date
+from inverted_index import InvertedIndex
+
+index = InvertedIndex(storage_dir="my_index")
+
+# Часть A: Добавление документов с датой
+index.add_document(["Python", "tutorial"], doc_date=date(2024, 1, 15))
+index.add_document(["Java", "guide"], doc_date=date(2024, 2, 20))
+
+# Поиск по диапазону дат
+results = index.search_date_range(date(2024, 1, 1), date(2024, 1, 31))
+print(f"January docs: {results}")  # [0]
+
+# Булевы запросы с условиями на даты
+results = index.search_boolean_with_dates("python AND DATE[2024-01-01:2024-01-31]")
+print(f"Python in January: {results}")  # [0]
+
+# Часть B: Жизненный цикл документа
+index.add_document(
+["Project", "Alpha"],
+start_date=date(2024, 1, 1),
+end_date=date(2024, 6, 30)
+)
+index.add_document(
+["Ongoing", "Service"],
+start_date=date(2024, 1, 1)
+# Без end_date - продолжается
+)
+
+# Поиск документов, валидных в диапазоне
+results = index.search_valid_in_range(date(2024, 5, 1), date(2024, 5, 31))
+print(f"Valid in May: {results}")  # [0, 1]
+
+# Поиск документов, созданных в диапазоне
+results = index.search_created_in_range(date(2024, 1, 1), date(2024, 1, 31))
+print(f"Created in January: {results}")  # [0, 1]
+
+# Комплексные запросы
+results = index.search_boolean_with_dates(
+"project AND VALID[2024-04-01:2024-06-30] AND CREATED[2024-01-01:2024-03-31]"
+)
+```
+
 ## Технические детали
 
 ### Алгоритм k-gram поиска
@@ -278,8 +329,17 @@ print(f"Wildcard: {wildcard_results}")  # [0, 1] - находит "python"
 
 - **Overhead памяти**: ~3-5x от основного индекса для k-gram индекса
 
+## Демонстрации
+
+```bash
+# Демонстрация prefix и wildcard поиска
+python3 demo_prefix_wildcard.py
+
+# Демонстрация поиска по датам
+python3 demo_date_search.py
+```
+
 ## Дополнительная документация
 
-- [`ARCHITECTURE_PLAN.md`](ARCHITECTURE_PLAN.md) - Детальная архитектура и алгоритмы
+- [`DATE_SEARCH_DOCUMENTATION.md`](DATE_SEARCH_DOCUMENTATION.md) - Подробная документация по поиску по датам
 - [`KGRAM_DIAGRAM.md`](KGRAM_DIAGRAM.md) - Визуальные примеры работы k-gram индекса
-- [`IMPLEMENTATION_SUMMARY.md`](IMPLEMENTATION_SUMMARY.md) - Краткое руководство по реализации
